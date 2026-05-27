@@ -1,0 +1,29 @@
+[project]
+name = "vacation"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "rmachado24", email = "ryanmachado2000@hotmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.13.4",
+    "rich>=15.0.0",
+    "streamlit>=1.57.0",
+    "typer>=0.25.1",
+]
+
+[project.scripts]
+vacation = "vacation:main"
+
+[build-system]
+requires = ["uv_build>=0.11.15,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.409",
+    "pytest>=9.0.3",
+    "ruff>=0.15.14",
+]
