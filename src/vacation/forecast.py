@@ -128,6 +128,14 @@ def _count_chargeable_days(start: date, end: date) -> int:
     return days
 
 
+def _is_chargeable_day(d: date, by_year: dict[int, set[date]]) -> bool:
+    if d.weekday() >= 5:
+        return False
+    if d.year not in by_year:
+        by_year[d.year] = observed_holidays(d.year)
+    return d not in by_year[d.year]
+
+
 def _eligible_for_floating(hire_date: date, day: date) -> bool:
     target_year = hire_date.year + ((hire_date.month - 1 + 6) // 12)
     target_month = ((hire_date.month - 1 + 6) % 12) + 1
@@ -189,20 +197,27 @@ def build_forecast(
             floating_balance = EIGHT_HOURS
 
         vac_use = Decimal("0")
+        daily_scheduled_use: dict[date, Decimal] = {}
+        holiday_cache: dict[int, set[date]] = {}
         for plan in planned:
             if plan.end_date < start or plan.start_date > period_end:
                 continue
             overlap_start = max(plan.start_date, start)
             overlap_end = min(plan.end_date, period_end)
-            days = _count_chargeable_days(overlap_start, overlap_end)
-            use = _quantize_hours(Decimal(days) * plan.hours_per_day)
-            vac_use += use
+            d = overlap_start
+            while d <= overlap_end:
+                if _is_chargeable_day(d, holiday_cache):
+                    daily_scheduled_use[d] = _quantize_hours(daily_scheduled_use.get(d, Decimal("0")) + plan.hours_per_day)
+                d += timedelta(days=1)
+
+        for day_use in daily_scheduled_use.values():
+            vac_use = _quantize_hours(vac_use + day_use)
 
         vac_use = _quantize_hours(vac_use)
         flo_use = Decimal("0.000")
         usage_year = period_end.year
         if (
-            vac_use >= EIGHT_HOURS
+            any(day_use >= EIGHT_HOURS for day_use in daily_scheduled_use.values())
             and usage_year not in floating_used_years
             and floating_balance >= EIGHT_HOURS
             and _eligible_for_floating(hire_date, period_end)
