@@ -268,7 +268,18 @@ styled_df = (
 )
 st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
-chart_df = result_df[["Paycheck Date", "Vacation Balance", "Floating Balance"]].copy().reset_index(drop=True)
+chart_df = result_df[
+    [
+        "Period Start",
+        "Period End",
+        "Paycheck Date",
+        "Accrual This Period",
+        "Vacation Used",
+        "Floating Used",
+        "Vacation Balance",
+        "Floating Balance",
+    ]
+].copy().reset_index(drop=True)
 segments: list[dict[str, object]] = []
 for i in range(len(chart_df) - 1):
     p1 = chart_df.iloc[i]
@@ -281,12 +292,39 @@ for i in range(len(chart_df) - 1):
             "y": float(p1["Vacation Balance"]),
             "y2": float(p2["Vacation Balance"]),
             "state": "Floating Holiday available" if floating_available else "Floating Holiday expended",
+            "period_start": p2["Period Start"],
+            "period_end": p2["Period End"],
+            "accrual_in_period": float(p2["Accrual This Period"]),
+            "used_in_period": float(p2["Vacation Used"]) + float(p2["Floating Used"]),
+            "ending_balance": float(p2["Vacation Balance"]),
         }
     )
 
 seg_df = pd.DataFrame(segments)
+base_chart = alt.Chart(seg_df)
+hover = alt.selection_point(fields=["x", "x2"], on="mouseover", clear="mouseout", empty=False)
+
+hitbox_layer = (
+    base_chart
+    .mark_rect(opacity=0)
+    .encode(
+        x="x:T",
+        x2="x2:T",
+        y=alt.value(0),
+        y2=alt.value(320),
+        tooltip=[
+            alt.Tooltip("period_start:T", title="Pay Period Start"),
+            alt.Tooltip("period_end:T", title="Pay Period End"),
+            alt.Tooltip("accrual_in_period:Q", title="Hours Accrued", format=".3f"),
+            alt.Tooltip("used_in_period:Q", title="Hours Used", format=".3f"),
+            alt.Tooltip("ending_balance:Q", title="End-of-Period Balance", format=".3f"),
+        ],
+    )
+    .add_params(hover)
+)
+
 line_chart = (
-    alt.Chart(seg_df)
+    base_chart
     .mark_rule(strokeWidth=3)
     .encode(
         x=alt.X("x:T", title="Paycheck Date"),
@@ -301,7 +339,28 @@ line_chart = (
             ),
             legend=alt.Legend(title=None, orient="bottom"),
         ),
+        tooltip=[
+            alt.Tooltip("period_start:T", title="Pay Period Start"),
+            alt.Tooltip("period_end:T", title="Pay Period End"),
+            alt.Tooltip("accrual_in_period:Q", title="Hours Accrued", format=".3f"),
+            alt.Tooltip("used_in_period:Q", title="Hours Used", format=".3f"),
+            alt.Tooltip("ending_balance:Q", title="End-of-Period Balance", format=".3f"),
+        ],
+        opacity=alt.condition(hover, alt.value(1.0), alt.value(0.75)),
     )
     .properties(height=320)
 )
-st.altair_chart(line_chart, use_container_width=True)
+
+highlight_layer = (
+    base_chart
+    .mark_rule(strokeWidth=4, color="#00d5ff")
+    .encode(
+        x="x:T",
+        x2="x2:T",
+        y="y:Q",
+        y2="y2:Q",
+    )
+    .transform_filter(hover)
+)
+
+st.altair_chart(hitbox_layer + line_chart + highlight_layer, use_container_width=True)
