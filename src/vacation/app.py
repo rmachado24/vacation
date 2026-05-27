@@ -101,7 +101,7 @@ def _save_user_data(
     DATA_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-st.set_page_config(page_title="Vacation Hr Forecast", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Vacation", layout="wide", initial_sidebar_state="expanded")
 st.title("Vacation Hours Forecaster")
 st.caption("Forecast vacation hours with planned or hypothetical upcoming usage.")
 
