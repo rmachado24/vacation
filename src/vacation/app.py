@@ -227,9 +227,6 @@ result_df["Is Interest"] = (
     | result_df["Is Purple"]
 )
 
-show_interest_only = st.toggle("Show rows of interest only", value=False)
-display_df = result_df[result_df["Is Interest"]].copy() if show_interest_only else result_df.copy()
-
 def _row_style(row: pd.Series) -> list[str]:
     vac_defined = (float(row["Vacation Used"]) > 0.0) or (float(row["Floating Used"]) > 0.0)
     balance = float(row["Vacation Balance"])
@@ -252,21 +249,24 @@ def _row_style(row: pd.Series) -> list[str]:
     return [f"background-color: {color}"] * len(row) if color else [""] * len(row)
 
 table_cols = FORECAST_TABLE_COLUMNS
-styled_df = (
-    display_df[table_cols]
-    .style.apply(_row_style, axis=1)
-    .format(
-        {
-            "Accrual This Period": "{:.3f}",
-            "Capped Out This Period": "{:.3f}",
-            "Vacation Used": "{:.3f}",
-            "Floating Used": "{:.3f}",
-            "Vacation Balance": "{:.3f}",
-            "Floating Balance": "{:.3f}",
-        }
+with st.expander("Forecast by Pay Period Table", expanded=False):
+    show_interest_only = st.toggle("Show rows of interest only", value=False)
+    display_df = result_df[result_df["Is Interest"]].copy() if show_interest_only else result_df.copy()
+    styled_df = (
+        display_df[table_cols]
+        .style.apply(_row_style, axis=1)
+        .format(
+            {
+                "Accrual This Period": "{:.3f}",
+                "Capped Out This Period": "{:.3f}",
+                "Vacation Used": "{:.3f}",
+                "Floating Used": "{:.3f}",
+                "Vacation Balance": "{:.3f}",
+                "Floating Balance": "{:.3f}",
+            }
+        )
     )
-)
-st.dataframe(styled_df, use_container_width=True, hide_index=True)
+    st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
 chart_df = result_df[
     [
